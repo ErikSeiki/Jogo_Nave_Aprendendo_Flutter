@@ -18,6 +18,15 @@ class GameWidget extends StatelessWidget {
   Widget build(BuildContext context){
     final game = SpaceShooterGame(size);
     return GestureDetector(
+      onPanStart: (_){
+        game.beginFire();
+      },
+      onPanEnd: (_){
+        game.stopFire();
+      },
+      onPanCancel: (){
+        game.stopFire();
+      },
       onPanUpdate: (DragUpdateDetails details) {
         game.onPlayerMove(details.delta);
       },
@@ -45,11 +54,14 @@ class SpaceShooterGame extends Game {
   final Size screenSize;
 
   Random random = Random();
-  static const enemy_speed = 400;
+  static const enemy_speed = 150;
+  static const shoot_speed = -400;
   GameObject player;
   Timer enemyCreator;
+  Timer shootCreator;
 
   List<GameObject> enemies =[];
+  List<GameObject> shoots = [];
 
   SpaceShooterGame(this.screenSize){
     player = GameObject()
@@ -61,19 +73,42 @@ class SpaceShooterGame extends Game {
       );
     });
     enemyCreator.start();
+
+    shootCreator = Timer(0.5, repeat: true, callback: (){
+      shoots.add(
+          GameObject()
+            ..position = Rect.fromLTWH(player.position.left + 20, player.position.top - 20, 20, 20)
+      );
+
+    });
   }
 
   void onPlayerMove(Offset delta) {
     player.position = player.position.translate(delta.dx,delta.dy);
   }
 
+  void beginFire(){
+    shootCreator.start();
+  }
+
+  void stopFire(){
+    shootCreator.stop();
+  }
+
   @override
   void update(double dt) {
     enemyCreator.update(dt);
-
+    shootCreator.update(dt);
+    
     enemies.forEach((enemy) {
       enemy.position = enemy.position.translate(0, enemy_speed * dt);
     });
+    shoots.forEach((shoot) {
+      shoot.position = shoot.position.translate(0, shoot_speed * dt);
+    });
+
+    enemies.removeWhere((enemy) => enemy.position.top >= screenSize.height);
+    shoots.removeWhere((shoot) => shoot.position.bottom <= 0);
   }
 
   @override
@@ -82,6 +117,9 @@ class SpaceShooterGame extends Game {
 
     enemies.forEach((enemy) {
       enemy.render(canvas);
+    });
+    shoots.forEach((shoot) {
+      shoot.render(canvas);
     });
   }
 }
