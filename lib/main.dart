@@ -2,7 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flame/game.dart';
 import 'package:flame/time.dart';
 import 'package:flame/flame.dart';
+import 'package:flame/animation.dart' as FlameAnimation;
+
 import 'dart:math';
+
 
 void main() async {
   Size size = await Flame.util.initialDimensions();
@@ -54,6 +57,20 @@ class CollidableGameObject extends GameObject {
 
 }
 
+class AnimationGameObject {
+  Rect position;
+  FlameAnimation.Animation animation;
+
+  void render(Canvas canvas) {
+    if(animation.loaded()){
+      animation.getSprite().renderRect(canvas, position);
+    }
+  }
+
+  void update(double dt){
+    animation.update(dt);
+  }
+}
 
 class SpaceShooterGame extends Game {
 
@@ -62,7 +79,7 @@ class SpaceShooterGame extends Game {
   Random random = Random();
   static const enemy_speed = 150;
   static const shoot_speed = -400;
-  GameObject player;
+  AnimationGameObject player;
   Timer enemyCreator;
   Timer shootCreator;
 
@@ -70,8 +87,9 @@ class SpaceShooterGame extends Game {
   List<CollidableGameObject> shoots = [];
 
   SpaceShooterGame(this.screenSize){
-    player = GameObject()
-      ..position = Rect.fromLTWH(100, 100, 50, 50);
+    player = AnimationGameObject()
+      ..position = Rect.fromLTWH(100, 100, 50, 50)
+      ..animation = FlameAnimation.Animation.sequenced("player.png", 4, textureHeight: 48, textureWidth: 32);
     enemyCreator = Timer(1.0,repeat:true,callback:() {
       enemies.add(
           CollidableGameObject()
@@ -105,7 +123,8 @@ class SpaceShooterGame extends Game {
   void update(double dt) {
     enemyCreator.update(dt);
     shootCreator.update(dt);
-    
+
+    player.update(dt);
     enemies.forEach((enemy) {
       enemy.position = enemy.position.translate(0, enemy_speed * dt);
     });
