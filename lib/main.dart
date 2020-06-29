@@ -41,20 +41,8 @@ class GameWidget extends StatelessWidget {
   }
 }
 
-
-Paint _white = Paint()..color = Color(0xFFFFFFFF);
-
-class GameObject {
-  Rect position;
-
-  void render(Canvas canvas) {
-    canvas.drawRect(position, _white);
-  }
-}
-
-class CollidableGameObject extends GameObject {
-  List<GameObject> collidingObjects = [];
-
+class AnimationCollidableGameObject extends AnimationGameObject{
+  List<AnimationCollidableGameObject> collidingObjects = [];
 }
 
 class AnimationGameObject {
@@ -83,25 +71,28 @@ class SpaceShooterGame extends Game {
   Timer enemyCreator;
   Timer shootCreator;
 
-  List<CollidableGameObject> enemies =[];
-  List<CollidableGameObject> shoots = [];
+  List<AnimationCollidableGameObject> enemies =[];
+  List<AnimationCollidableGameObject> shoots = [];
+  List<AnimationCollidableGameObject> explosions = [];
 
   SpaceShooterGame(this.screenSize){
     player = AnimationGameObject()
-      ..position = Rect.fromLTWH(100, 100, 50, 50)
+      ..position = Rect.fromLTWH(100, 500, 50, 75)
       ..animation = FlameAnimation.Animation.sequenced("player.png", 4, textureHeight: 48, textureWidth: 32);
     enemyCreator = Timer(1.0,repeat:true,callback:() {
       enemies.add(
-          CollidableGameObject()
-            ..position = Rect.fromLTWH((screenSize.width - 50) * random.nextDouble(), 0, 50, 50)
+          AnimationCollidableGameObject()
+            ..position = Rect.fromLTWH((screenSize.width - 25) * random.nextDouble(), 0, 25, 25)
+            ..animation = FlameAnimation.Animation.sequenced("enemy.png", 4, textureHeight: 16, textureWidth: 16)
       );
     });
     enemyCreator.start();
 
     shootCreator = Timer(0.5, repeat: true, callback: (){
       shoots.add(
-          CollidableGameObject()
-            ..position = Rect.fromLTWH(player.position.left + 20, player.position.top - 20, 20, 20)
+          AnimationCollidableGameObject()
+            ..position = Rect.fromLTWH(player.position.left + 20, player.position.top - 20, 10, 20)
+            ..animation = FlameAnimation.Animation.sequenced("bullet.png", 4, textureHeight: 16, textureWidth: 8)
       );
 
     });
@@ -119,26 +110,44 @@ class SpaceShooterGame extends Game {
     shootCreator.stop();
   }
 
+  void createAplosionAt(double x, double y){
+    final animation = FlameAnimation.Animation.sequenced("explosion.png", 4, textureHeight: 32, textureWidth: 32, stepTime:0.05)
+      ..loop = false;
+    explosions.add(
+      AnimationCollidableGameObject()
+        ..position = Rect.fromLTWH(x - 25, y - 25, 50, 50)
+          ..animation = animation
+    );
+  }
+
   @override
   void update(double dt) {
     enemyCreator.update(dt);
     shootCreator.update(dt);
 
+
     player.update(dt);
     enemies.forEach((enemy) {
+      enemy.update(dt);
       enemy.position = enemy.position.translate(0, enemy_speed * dt);
     });
     shoots.forEach((shoot) {
+      shoot.update(dt);
       shoot.position = shoot.position.translate(0, shoot_speed * dt);
     });
 
     shoots.forEach((shoot) {
       enemies.forEach((enemy) {
         if(shoot.position.overlaps(enemy.position)){
+          createAplosionAt(shoot.position.left, shoot.position.top);
           shoot.collidingObjects.add(enemy);
           enemy.collidingObjects.add(shoot);
         }
       });
+    });
+
+    explosions.forEach((explosion) {
+      explosion.update(dt);
     });
 
     enemies.removeWhere((enemy) {
@@ -146,6 +155,9 @@ class SpaceShooterGame extends Game {
     });
     shoots.removeWhere((shoot) {
       return shoot.position.bottom <= 0 || shoot.collidingObjects.isNotEmpty;
+    });
+    explosions.removeWhere((explosion) {
+      return explosion.animation.isLastFrame;
     });
   }
 
@@ -158,6 +170,10 @@ class SpaceShooterGame extends Game {
     });
     shoots.forEach((shoot) {
       shoot.render(canvas);
+    });
+
+    explosions.forEach((explosion) {
+      explosion.render(canvas);
     });
   }
 }
